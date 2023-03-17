@@ -186,13 +186,13 @@ async def list_users():
     db.close()
 
     # Return list of UserOut objects
-    return [UserOut(username=user.username, email=user.email) for user in users]
+    return [UserOut(username=user.username, email=user.email, id=user.id) for user in users]
 
-@app.delete("/users/{user_id}")
-async def delete_user(user_id: int):
+@app.delete("/users/{user_email}")
+async def delete_user(user_email: str):
     # Delete user with given ID from database
     db = SessionLocal()
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter(User.email == user_email).first()
     db.delete(user)
     db.commit()
     db.close()
