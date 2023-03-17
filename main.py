@@ -57,13 +57,14 @@
 #     return {"message": "existing_member"}
 
 
-from fastapi import FastAPI ,HTTPException
+from fastapi import FastAPI ,HTTPException ,File, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from passlib.hash import bcrypt
 from fastapi.middleware.cors import CORSMiddleware
+from typing import List
 
 # Set up the database connection
 SQLALCHEMY_DATABASE_URL = 'postgresql://postgres:Pbabs@localhost/Diabetes_db'
@@ -109,6 +110,7 @@ class UserLogin(BaseModel):
 # Create the FastAPI app
 app = FastAPI()
 
+#for signup page
 # Define the signup endpoint
 @app.post("/signup/")
 def signup(user: UserCreate):
@@ -124,6 +126,7 @@ def signup(user: UserCreate):
     # Return the newly created user
     return {"message": db_user}
 
+#for login page
 @app.post("/login/")
 def login(user: UserLogin):
     # Get the user from the database by email
@@ -136,6 +139,67 @@ def login(user: UserLogin):
     
     # Return the user
     return {"message": "successful"}
+
+
+class Profile(BaseModel):
+    name: str
+    email: str
+    bio: str
+
+
+#for profile page
+@app.post("/profile/")
+async def create_profile(profile: Profile, profile_pic: UploadFile = File(...)):
+    return {"profile": profile, "profile_pic_filename": profile_pic.filename}
+
+# if __name__ == "__main__":
+#     import uvicorn
+#     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+class PasswordResetRequest(BaseModel):
+    email: str
+
+class UserOut(BaseModel):
+    username: str
+    email: str
+
+password_reset_requests = []
+
+@app.post("/forgot-password/")
+async def request_password_reset(request: PasswordResetRequest):
+    # Retrieve user with matching email from database
+    db = SessionLocal()
+    user = db.query(User).filter(User.email == request.email).first()
+    db.close()
+
+    if user:
+        # Send password reset email to the user's email address
+        return {"message": "Password reset email sent"}
+    else:
+        return {"message": "User not found"}
+
+@app.get("/users/")
+async def list_users():
+    # Retrieve all users from database
+    db = SessionLocal()
+    users = db.query(User).all()
+    db.close()
+
+    # Return list of UserOut objects
+    return [UserOut(username=user.username, email=user.email) for user in users]
+
+@app.delete("/users/{user_id}")
+async def delete_user(user_id: int):
+    # Delete user with given ID from database
+    db = SessionLocal()
+    user = db.query(User).filter(User.id == user_id).first()
+    db.delete(user)
+    db.commit()
+    db.close()
+
+    return {"message": "User deleted"}
+
+
 
 app.add_middleware(
     CORSMiddleware,
